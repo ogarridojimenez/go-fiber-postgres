@@ -2,10 +2,10 @@ package main
 
 import (
 	"log"
+	"net/http"
 
-	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
-
 	"gorm.io/gorm"
 )
 
@@ -22,9 +22,34 @@ type Repository struct {
 func (r *Repository) SetupRoutes(app *fiber.App) {
 	api := app.Group("/api")
 	api.Post("/create_books", r.CreateBook)
-	api.Delete("delete_book/:id", r.DeleteBook)
-	api.Get("/get_books/:id", r.GetBookbyID)
-	api.Get("books", r.GetBooks)
+	//api.Delete("delete_book/:id", r.DeleteBook)
+	//	api.Get("/get_books/:id", r.GetBookbyID)
+	//api.Get("books", r.GetBooks)
+}
+
+func (r Repository) CreateBook(con *fiber.Ctx) error {
+	book := Book{}
+
+	err := con.BodyParser(&book)
+
+	if err != nil {
+		con.Status(http.StatusUnprocessableEntity).JSON(
+			&fiber.Map{"message": "request failed"})
+		return err
+	}
+
+	err = r.DB.Create(&book).Error
+	if err != nil {
+		con.Status(http.StatusBadRequest).JSON(
+			&fiber.Map{"message": "book has been added"})
+		return err
+	}
+
+	con.Status(http.StatusOK).JSON(
+		&fiber.Map{"message": "could not create book"})
+
+	return nil
+
 }
 
 func main() {
