@@ -24,7 +24,25 @@ func (r *Repository) SetupRoutes(app *fiber.App) {
 	api.Post("/create_books", r.CreateBook)
 	//api.Delete("delete_book/:id", r.DeleteBook)
 	//	api.Get("/get_books/:id", r.GetBookbyID)
-	//api.Get("books", r.GetBooks)
+	api.Get("books", r.GetBooks)
+}
+
+func (r *Repository) GetBooks(con *fiber.Ctx) error {
+	bookModels := &[]models.Books{}
+
+	err := r.DB.Find(bookModels).Error
+	if err != nil {
+		con.Status(http.StatusBadRequest).JSON(
+			&fiber.Map{"message": "could no get books"})
+		return err
+	}
+
+	con.Status(http.StatusOK).JSON(
+		&fiber.Map{
+			"message": "books fetched successfully",
+			"data":    bookModels,
+		})
+	return nil
 }
 
 func (r Repository) CreateBook(con *fiber.Ctx) error {
@@ -41,12 +59,12 @@ func (r Repository) CreateBook(con *fiber.Ctx) error {
 	err = r.DB.Create(&book).Error
 	if err != nil {
 		con.Status(http.StatusBadRequest).JSON(
-			&fiber.Map{"message": "book has been added"})
+			&fiber.Map{"message": "could not create book"})
 		return err
 	}
 
 	con.Status(http.StatusOK).JSON(
-		&fiber.Map{"message": "could not create book"})
+		&fiber.Map{"message": "book has been added"})
 
 	return nil
 
