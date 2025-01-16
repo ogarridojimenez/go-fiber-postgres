@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
+	"github.com/ogarridojimenez/go-fiber-postgres/models"
 	"gorm.io/gorm"
 )
 
