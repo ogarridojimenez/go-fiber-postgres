@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 	"github.com/ogarridojimenez/go-fiber-postgres/models"
+	"github.com/ogarridojimenez/go-fiber-postgres/storage"
 	"gorm.io/gorm"
 )
 
@@ -23,8 +26,8 @@ type Repository struct {
 func (r *Repository) SetupRoutes(app *fiber.App) {
 	api := app.Group("/api")
 	api.Post("/create_books", r.CreateBook)
-	//api.Delete("delete_book/:id", r.DeleteBook)
-	//	api.Get("/get_books/:id", r.GetBookbyID)
+	api.Delete("delete_book/:id", r.DeleteBook)
+	api.Get("/get_books/:id", r.GetBookByID)
 	api.Get("books", r.GetBooks)
 }
 
@@ -44,6 +47,33 @@ func (r *Repository) GetBooks(con *fiber.Ctx) error {
 			"data":    bookModels,
 		})
 	return nil
+}
+
+func (r *Repository) DeleteBook(con *fiber.Ctx) error {
+	bookModel := models.Books{}
+	id := con.Params("id")
+	if id == "" {
+		con.Status(http.StatusInternalServerError).JSON(&fiber.Map{
+			"messaje": "id cannot be empty",
+		})
+		return nil
+	}
+
+	err := r.DB.Delete(bookModel, id)
+
+	if err.Error != nil {
+		con.Status(http.StatusBadRequest).JSON(&fiber.Map{
+			"message": "could not delete book",
+		})
+		return err.Error
+	}
+
+	con.Status(http.StatusOK).JSON(&fiber.Map{
+		"message": "book delete successfully",
+	})
+
+	return nil
+
 }
 
 func (r Repository) CreateBook(con *fiber.Ctx) error {
@@ -71,16 +101,57 @@ func (r Repository) CreateBook(con *fiber.Ctx) error {
 
 }
 
+func (r *Repository) GetBookByID(con *fiber.Ctx) error {
+	id := con.Params("id")
+	bookModel := &models.Books{}
+	if id == "" {
+		con.Status(http.StatusInternalServerError).JSON(&fiber.Map{
+			"messaje": "id cannot be empty",
+		})
+		return nil
+	}
+	fmt.Println("the ID is", id)
+
+	err := r.DB.Where("id = ?", id).First(bookModel).Error
+	if err != nil {
+		con.Status(http.StatusBadRequest).JSON(
+			&fiber.Map{"message": "could not get the book"})
+		return err
+	}
+	con.Status(http.StatusOK).JSON(&fiber.Map{
+		"message": "book id fetched successfully",
+		"data":    bookModel,
+	})
+
+	return nil
+
+}
+
 func main() {
 	err := godotenv.Load(".env")
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	config := &storage.Config{
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		Password: os.Getenv("DB_PASS"),
+		User:     os.Getenv("DB_USER"),
+		SSLMode:  os.Getenv("DB_SSLMODE"),
+		DBName:   os.Getenv("DB_NAME"),
+	}
+
 	db, err := storage.NewConnection(config)
 
 	if err != nil {
 		log.Fatal("could not load the database")
+	}
+
+	err = models.MigrateBooks(db)
+	if err != nil {
+		log.Fatal("could not migrate database")
 	}
 
 	r := Repository{
